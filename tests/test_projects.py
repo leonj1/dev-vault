@@ -155,3 +155,57 @@ def test_delete_secret_from_project(client, secrets_service):
     # Test deleting from non-existent project
     response = client.delete(f"/projects/non-existent/secrets/{secret['identifier']}")
     assert response.status_code == 404
+
+def test_complete_secret_project_flow(client, secrets_service):
+    """Test the complete flow of secret and project management:
+    1. Create a secret
+    2. Create a project (should have no secrets)
+    3. Assign the secret to the project
+    4. Remove the secret from the project
+    5. Verify project has no secrets
+    """
+    # 1. Create a secret
+    secret_data = {
+        "name": "flow-test-secret",
+        "value": "test-value",
+        "source": "AWS_SAM"
+    }
+    secret_response = client.post("/secrets/", json=secret_data)
+    assert secret_response.status_code == 200
+    secret = secret_response.json()
+    
+    # 2. Create a project (should have no secrets)
+    project_data = {
+        "name": "flow-test-project",
+        "secrets": []  # Explicitly empty
+    }
+    project_response = client.post("/projects/", json=project_data)
+    assert project_response.status_code == 200
+    project = project_response.json()
+    assert len(project["secrets"]) == 0  # Verify no secrets auto-assigned
+    
+    # 3. Assign the secret to the project
+    assign_response = client.post(
+        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
+    )
+    assert assign_response.status_code == 200
+    updated_project = assign_response.json()
+    assert secret["identifier"] in updated_project["secrets"]
+    assert len(updated_project["secrets"]) == 1
+    
+    # 4. Remove the secret from the project
+    remove_response = client.delete(
+        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
+    )
+    assert remove_response.status_code == 200
+    final_project = remove_response.json()
+    
+    # 5. Verify project has no secrets
+    assert len(final_project["secrets"]) == 0
+    assert secret["identifier"] not in final_project["secrets"]
+    
+    # Double-check by getting the project directly
+    get_response = client.get(f"/projects/{project['identifier']}")
+    assert get_response.status_code == 200
+    retrieved_project = get_response.json()
+    assert len(retrieved_project["secrets"]) == 0

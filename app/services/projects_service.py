@@ -15,6 +15,9 @@ class ProjectsService:
         Returns:
             Created project
         """
+        # Initialize empty secrets list if none provided
+        if project.secrets is None:
+            project.secrets = []
         self._projects[project.identifier] = project
         return project
 
@@ -87,6 +90,7 @@ class ProjectsService:
             return None
         if secret_id not in project.secrets:
             project.secrets.append(secret_id)
+            self._projects[project_id] = project  # Save the updated project
         return project
 
     async def delete_secret(self, project_id: str, secret_id: str) -> Optional[Project]:
@@ -105,4 +109,5 @@ class ProjectsService:
             return None
         if secret_id in project.secrets:
             project.secrets.remove(secret_id)
+            self._projects[project_id] = project  # Save the updated project
         return project

@@ -80,6 +80,24 @@
         .secret-list {
             width: 100%;
             min-height: 100px;
+            margin-bottom: 10px;
+        }
+        .selected-secrets {
+            margin-top: 10px;
+        }
+        .selected-secret {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .selected-secret button {
+            padding: 5px 10px;
+            font-size: 12px;
         }
         #editSecretForm {
             display: none;
@@ -243,6 +261,7 @@
                 }
                 
                 document.getElementById('secretName').value = '';
+                document.getElementById('secretValue').value = '';
                 document.getElementById('secretSource').value = 'AWS_SAM';
                 showMessage('Secret created successfully!', false, 'secretMessage');
                 loadSecrets();
@@ -329,16 +348,30 @@
                 
                 projects.forEach(project => {
                     const tr = document.createElement('tr');
+                    tr.setAttribute('data-project-id', project.identifier);
                     tr.innerHTML = `
                         <td>${project.name}</td>
                         <td>
-                            <select multiple class="secret-list" onchange="updateProjectSecrets('${project.identifier}', this)">
-                                ${availableSecrets.map(secret => 
-                                    `<option value="${secret.identifier}" ${project.secrets.includes(secret.identifier) ? 'selected' : ''}>
-                                        ${secret.name}
-                                    </option>`
-                                ).join('')}
-                            </select>
+                            <div>
+                                <select multiple class="secret-list" onchange="updateProjectSecrets('${project.identifier}', this)">
+                                    ${availableSecrets.map(secret => 
+                                        `<option value="${secret.identifier}" ${project.secrets.includes(secret.identifier) ? 'selected' : ''}>
+                                            ${secret.name}
+                                        </option>`
+                                    ).join('')}
+                                </select>
+                                <div class="selected-secrets">
+                                    ${project.secrets.map(secretId => {
+                                        const secret = availableSecrets.find(s => s.identifier === secretId);
+                                        return secret ? `
+                                            <div class="selected-secret">
+                                                ${secret.name}
+                                                <button onclick="removeSecretFromProject('${project.identifier}', '${secret.identifier}')" class="delete">Remove</button>
+                                            </div>
+                                        ` : '';
+                                    }).join('')}
+                                </div>
+                            </div>
                         </td>
                         <td class="actions">
                             <button onclick="deleteProject('${project.identifier}')" class="delete">Delete</button>
@@ -354,6 +387,7 @@
         // Update project secrets
         async function updateProjectSecrets(projectId, selectElement) {
             const selectedSecrets = Array.from(selectElement.selectedOptions).map(option => option.value);
+            const projectName = document.querySelector(`tr[data-project-id="${projectId}"] td:first-child`).textContent;
             
             try {
                 const response = await fetch(`${API_URL}/projects/${projectId}`, {
@@ -362,7 +396,9 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        secrets: selectedSecrets
+                        name: projectName,
+                        secrets: selectedSecrets,
+                        identifier: projectId
                     })
                 });
                 
@@ -371,6 +407,7 @@
                 }
                 
                 showMessage('Project secrets updated successfully!');
+                loadProjects();
             } catch (error) {
                 showMessage('Error updating project secrets: ' + error.message, true);
                 loadProjects(); // Reload to reset the selection
@@ -390,7 +427,8 @@
                     },
                     body: JSON.stringify({
                         name,
-                        secrets: []
+                        secrets: [],
+                        identifier: undefined // Let the server generate the identifier
                     })
                 });
                 
@@ -398,10 +436,12 @@
                     throw new Error('Failed to create project');
                 }
                 
+                const project = await response.json();
                 document.getElementById('projectName').value = '';
                 showMessage('Project created successfully!');
-                loadProjects();
+                await loadProjects(); // Reload the projects list
             } catch (error) {
+                console.error('Error creating project:', error);
                 showMessage('Error creating project: ' + error.message, true);
             }
         });
@@ -425,6 +465,24 @@
                 loadProjects();
             } catch (error) {
                 showMessage('Error deleting project: ' + error.message, true);
+            }
+        }
+
+        // Remove secret from project
+        async function removeSecretFromProject(projectId, secretId) {
+            try {
+                const response = await fetch(`${API_URL}/projects/${projectId}/secrets/${secretId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to remove secret from project');
+                }
+                
+                showMessage('Secret removed from project successfully!');
+                loadProjects();
+            } catch (error) {
+                showMessage('Error removing secret from project: ' + error.message, true);
             }
         }
 
