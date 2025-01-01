@@ -1,5 +1,6 @@
 # Default port for the application (can be overridden)
 PORT ?= 7601
+CONTAINER_NAME := secrets-api
 
 .PHONY: test docker-build docker-run install-hooks setup help
 
@@ -25,11 +26,15 @@ test:
 		-v \
 		tests/
 
-docker-build:
-	docker build -t secrets-api .
+build:
+	docker build -t $(CONTAINER_NAME) .
 
-docker-run:
-	docker run -p $(PORT):8000 secrets-api
+run:
+	docker run -d --rm --name $(CONTAINER_NAME) -p $(PORT):8000 $(CONTAINER_NAME)
+
+stop:
+	docker stop -t 0 $(CONTAINER_NAME) || true
+	docker rm -f $(CONTAINER_NAME) || true
 
 install-hooks:
 	git config core.hooksPath .githooks
