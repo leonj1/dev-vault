@@ -1,4 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import logging
+import os
 from typing import List
 from .models import Secret, Project
 from .services.secrets_service import SecretsService
@@ -9,6 +14,32 @@ app = FastAPI(
     description="API for managing secrets",
     version="1.0.0"
 )
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Get absolute path to static directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(current_dir, "static")
+logger.debug(f"Static directory path: {static_dir}")
+
+# Serve index.html at root
+@app.get("/")
+async def root():
+    return FileResponse(os.path.join(static_dir, "index.html"))
+
+# Mount static files for other static assets
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Create single instances of services
 secrets_service = SecretsService()
