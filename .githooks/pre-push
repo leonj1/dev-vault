@@ -1,6 +1,10 @@
 #!/bin/bash
 
-echo "Running tests before push..."
+# Get the current branch name
+branch=$(git symbolic-ref --short HEAD)
+echo "Running tests before pushing to $branch..."
+
+# Run the tests
 make test
 
 # Get the exit code of make test
