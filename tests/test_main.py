@@ -1,11 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import app, get_secrets_service
 from app.models import Source
 
-client = TestClient(app)
+@pytest.fixture
+def client(secrets_service):
+    app.dependency_overrides[get_secrets_service] = lambda: secrets_service
+    return TestClient(app)
 
-def test_create_secret():
+def test_create_secret(client):
     test_cases = [
         {
             "name": "test-secret",
@@ -25,7 +28,7 @@ def test_create_secret():
         assert data["source"] == case["source"]
         assert "identifier" in data
 
-def test_list_secrets():
+def test_list_secrets(client):
     # Create test secrets
     secrets = [
         {"name": "secret1", "source": Source.AWS_SAM.value},
@@ -33,7 +36,8 @@ def test_list_secrets():
     ]
     
     for secret in secrets:
-        client.post("/secrets/", json=secret)
+        response = client.post("/secrets/", json=secret)
+        assert response.status_code == 200
     
     # Test listing
     response = client.get("/secrets/")

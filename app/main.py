@@ -9,6 +9,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Create a single instance of SecretsService
+secrets_service = SecretsService()
+
 def get_secrets_service() -> SecretsService:
     """
     Dependency injection for SecretsService.
@@ -16,7 +19,7 @@ def get_secrets_service() -> SecretsService:
     Returns:
         Instance of SecretsService
     """
-    return SecretsService()
+    return secrets_service
 
 @app.post("/secrets/", response_model=Secret)
 async def create_secret(
