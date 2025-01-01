@@ -39,3 +39,49 @@ async def test_list_secrets(secrets_service):
     result = await secrets_service.list_secrets()
     assert len(result) == len(secrets)
     assert all(isinstance(s, Secret) for s in result)
+
+@pytest.mark.asyncio
+async def test_update_secret(secrets_service):
+    # Create a test secret
+    secret = Secret(name="test-secret", source=Source.AWS_SAM)
+    created_secret = await secrets_service.create_secret(secret)
+    
+    # Update the secret
+    updated_data = Secret(
+        name="updated-secret",
+        source=Source.OTHER,
+        identifier=created_secret.identifier
+    )
+    result = await secrets_service.update_secret(created_secret.identifier, updated_data)
+    
+    # Verify update
+    assert result is not None
+    assert result.name == "updated-secret"
+    assert result.source == Source.OTHER
+    assert result.identifier == created_secret.identifier
+    
+    # Try updating non-existent secret
+    non_existent = await secrets_service.update_secret("non-existent", updated_data)
+    assert non_existent is None
+
+@pytest.mark.asyncio
+async def test_delete_secret(secrets_service):
+    # Create a test secret
+    secret = Secret(name="test-secret", source=Source.AWS_SAM)
+    created_secret = await secrets_service.create_secret(secret)
+    
+    # Verify initial state
+    initial_secrets = await secrets_service.list_secrets()
+    assert len(initial_secrets) == 1
+    
+    # Delete the secret
+    result = await secrets_service.delete_secret(created_secret.identifier)
+    assert result is True
+    
+    # Verify deletion
+    remaining_secrets = await secrets_service.list_secrets()
+    assert len(remaining_secrets) == 0
+    
+    # Try deleting non-existent secret
+    result = await secrets_service.delete_secret("non-existent")
+    assert result is False

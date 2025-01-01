@@ -1,0 +1,20 @@
+# Use Node.js slim image
+FROM node:18-slim
+
+# Create app directory
+WORKDIR /app
+
+# Install serve package globally
+RUN npm install -g serve
+
+# Copy frontend files
+COPY app/static /app
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variable for API port
+ENV API_PORT=5000
+
+# Replace API_PORT in index.html at runtime
+CMD sh -c "sed -i \"s/const API_PORT = window.API_PORT || 5000;/const API_PORT = $API_PORT;/\" /app/index.html && serve -s /app -l tcp://0.0.0.0:3000"

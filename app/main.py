@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import logging
 import os
 from typing import List
@@ -33,13 +33,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(current_dir, "static")
 logger.debug(f"Static directory path: {static_dir}")
 
-# Serve index.html at root
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(static_dir, "index.html"))
-
-# Mount static files for other static assets
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    with open(os.path.join(static_dir, "index.html"), "r") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content, status_code=200)
 
 # Create single instances of services
 secrets_service = SecretsService()
@@ -123,6 +121,28 @@ async def list_secrets(
     service: SecretsService = Depends(get_secrets_service)
 ) -> List[Secret]:
     return await service.list_secrets()
+
+@app.put("/secrets/{identifier}", response_model=Secret)
+async def update_secret(
+    identifier: str,
+    secret: Secret,
+    service: SecretsService = Depends(get_secrets_service)
+) -> Secret:
+    """Update a secret"""
+    updated_secret = await service.update_secret(identifier, secret)
+    if not updated_secret:
+        raise HTTPException(status_code=404, detail="Secret not found")
+    return updated_secret
+
+@app.delete("/secrets/{identifier}", response_model=bool)
+async def delete_secret(
+    identifier: str,
+    service: SecretsService = Depends(get_secrets_service)
+) -> bool:
+    """Delete a secret"""
+    if not await service.delete_secret(identifier):
+        raise HTTPException(status_code=404, detail="Secret not found")
+    return True
 
 @app.post("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
 async def add_secret_to_project(
