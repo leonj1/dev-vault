@@ -112,7 +112,7 @@ def test_delete_project(client):
 
 def test_add_secret_to_project(client, secrets_service):
     # Create a secret first
-    secret_data = {"name": "test-secret", "source": "AWS_SAM"}
+    secret_data = {"name": "test-secret", "value": "test-value", "source": "AWS_SAM"}
     secret = client.post("/secrets/", json=secret_data).json()
     
     # Create a project
@@ -137,7 +137,7 @@ def test_add_secret_to_project(client, secrets_service):
 
 def test_delete_secret_from_project(client, secrets_service):
     # Create a secret
-    secret_data = {"name": "test-secret", "source": "AWS_SAM"}
+    secret_data = {"name": "test-secret", "value": "test-value", "source": "AWS_SAM"}
     secret = client.post("/secrets/", json=secret_data).json()
     
     # Create a project with the secret

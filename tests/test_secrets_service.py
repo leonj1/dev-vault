@@ -6,10 +6,12 @@ async def test_create_secret(secrets_service):
     test_cases = [
         {
             "name": "test-secret",
+            "value": "test-value-1",
             "source": Source.AWS_SAM,
         },
         {
             "name": "another-secret",
+            "value": "test-value-2",
             "source": Source.OTHER,
         }
     ]
@@ -25,8 +27,8 @@ async def test_create_secret(secrets_service):
 async def test_list_secrets(secrets_service):
     # Create test secrets
     secrets = [
-        Secret(name="secret1", source=Source.AWS_SAM),
-        Secret(name="secret2", source=Source.OTHER)
+        Secret(name="secret1", value="value1", source=Source.AWS_SAM),
+        Secret(name="secret2", value="value2", source=Source.OTHER)
     ]
     
     initial_count = len(await secrets_service.list_secrets())
@@ -43,12 +45,13 @@ async def test_list_secrets(secrets_service):
 @pytest.mark.asyncio
 async def test_update_secret(secrets_service):
     # Create a test secret
-    secret = Secret(name="test-secret", source=Source.AWS_SAM)
+    secret = Secret(name="test-secret", value="test-value", source=Source.AWS_SAM)
     created_secret = await secrets_service.create_secret(secret)
     
     # Update the secret
     updated_data = Secret(
         name="updated-secret",
+        value="updated-value",
         source=Source.OTHER,
         identifier=created_secret.identifier
     )
@@ -67,7 +70,7 @@ async def test_update_secret(secrets_service):
 @pytest.mark.asyncio
 async def test_delete_secret(secrets_service):
     # Create a test secret
-    secret = Secret(name="test-secret", source=Source.AWS_SAM)
+    secret = Secret(name="test-secret", value="test-value", source=Source.AWS_SAM)
     created_secret = await secrets_service.create_secret(secret)
     
     # Verify initial state

@@ -12,10 +12,12 @@ def test_create_secret(client):
     test_cases = [
         {
             "name": "test-secret",
+            "value": "test-value-1",
             "source": Source.AWS_SAM.value,
         },
         {
             "name": "another-secret",
+            "value": "test-value-2",
             "source": Source.OTHER.value,
         }
     ]
@@ -31,8 +33,8 @@ def test_create_secret(client):
 def test_list_secrets(client):
     # Create test secrets
     secrets = [
-        {"name": "secret1", "source": Source.AWS_SAM.value},
-        {"name": "secret2", "source": Source.OTHER.value}
+        {"name": "secret1", "value": "value1", "source": Source.AWS_SAM.value},
+        {"name": "secret2", "value": "value2", "source": Source.OTHER.value}
     ]
     
     for secret in secrets:

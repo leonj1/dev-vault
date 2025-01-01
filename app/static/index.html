@@ -103,6 +103,10 @@
                     <input type="text" id="secretName" required>
                 </div>
                 <div class="form-group">
+                    <label for="secretValue">Secret Value:</label>
+                    <input type="password" id="secretValue" required>
+                </div>
+                <div class="form-group">
                     <label for="secretSource">Source:</label>
                     <select id="secretSource" required>
                         <option value="AWS_SAM">AWS SAM</option>
@@ -118,6 +122,10 @@
                     <div class="form-group">
                         <label for="editSecretName">Secret Name:</label>
                         <input type="text" id="editSecretName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editSecretValue">Secret Value:</label>
+                        <input type="password" id="editSecretValue" required>
                     </div>
                     <div class="form-group">
                         <label for="editSecretSource">Source:</label>
@@ -139,6 +147,7 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Value</th>
                         <th>Source</th>
                         <th>Actions</th>
                     </tr>
@@ -194,9 +203,10 @@
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${secret.name}</td>
+                        <td><input type="password" value="${secret.value}" readonly></td>
                         <td>${secret.source}</td>
                         <td class="actions">
-                            <button onclick="editSecret('${secret.identifier}', '${secret.name}', '${secret.source}')" class="edit">Edit</button>
+                            <button onclick="editSecret('${secret.identifier}', '${secret.name}', '${secret.value}', '${secret.source}')" class="edit">Edit</button>
                             <button onclick="deleteSecret('${secret.identifier}')" class="delete">Delete</button>
                         </td>
                     `;
@@ -212,6 +222,7 @@
         document.getElementById('secretForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('secretName').value;
+            const value = document.getElementById('secretValue').value;
             const source = document.getElementById('secretSource').value;
             
             try {
@@ -222,6 +233,7 @@
                     },
                     body: JSON.stringify({
                         name,
+                        value,
                         source
                     })
                 });
@@ -240,10 +252,11 @@
         });
 
         // Edit secret
-        function editSecret(identifier, name, source) {
+        function editSecret(identifier, name, value, source) {
             document.getElementById('editSecretForm').style.display = 'block';
             document.getElementById('editSecretId').value = identifier;
             document.getElementById('editSecretName').value = name;
+            document.getElementById('editSecretValue').value = value;
             document.getElementById('editSecretSource').value = source;
         }
 
@@ -255,6 +268,7 @@
             e.preventDefault();
             const identifier = document.getElementById('editSecretId').value;
             const name = document.getElementById('editSecretName').value;
+            const value = document.getElementById('editSecretValue').value;
             const source = document.getElementById('editSecretSource').value;
             
             try {
@@ -265,6 +279,7 @@
                     },
                     body: JSON.stringify({
                         name,
+                        value,
                         source,
                         identifier
                     })

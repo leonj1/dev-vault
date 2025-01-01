@@ -17,6 +17,7 @@ class Source(str, Enum):
 
 class Secret(BaseModel):
     name: str = Field(..., description="Name of the secret")
+    value: str = Field(..., description="Value of the secret")
     source: Source = Field(..., description="Source of the secret")
     identifier: str = Field(
         default_factory=lambda: str(ULID()),
