@@ -92,3 +92,34 @@ async def list_secrets(
     service: SecretsService = Depends(get_secrets_service)
 ) -> List[Secret]:
     return await service.list_secrets()
+
+@app.post("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
+async def add_secret_to_project(
+    identifier: str,
+    secret_id: str,
+    service: ProjectsService = Depends(get_projects_service),
+    secrets_service: SecretsService = Depends(get_secrets_service)
+) -> Project:
+    """Add a secret to a project"""
+    # Verify secret exists
+    secrets = await secrets_service.list_secrets()
+    if not any(s.identifier == secret_id for s in secrets):
+        raise HTTPException(status_code=404, detail="Secret not found")
+    
+    # Add secret to project
+    project = await service.add_secret(identifier, secret_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+@app.delete("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
+async def delete_secret_from_project(
+    identifier: str,
+    secret_id: str,
+    service: ProjectsService = Depends(get_projects_service)
+) -> Project:
+    """Delete a secret from a project"""
+    project = await service.delete_secret(identifier, secret_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project

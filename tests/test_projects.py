@@ -109,3 +109,49 @@ def test_delete_project(client):
     # Test deleting non-existent project
     response = client.delete("/projects/non-existent")
     assert response.status_code == 404
+
+def test_add_secret_to_project(client, secrets_service):
+    # Create a secret first
+    secret_data = {"name": "test-secret", "source": "AWS_SAM"}
+    secret = client.post("/secrets/", json=secret_data).json()
+    
+    # Create a project
+    project_data = {"name": "test-project", "secrets": []}
+    project = client.post("/projects/", json=project_data).json()
+    
+    # Add secret to project
+    response = client.post(
+        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert secret["identifier"] in data["secrets"]
+    
+    # Test adding to non-existent project
+    response = client.post(f"/projects/non-existent/secrets/{secret['identifier']}")
+    assert response.status_code == 404
+    
+    # Test adding non-existent secret
+    response = client.post(f"/projects/{project['identifier']}/secrets/non-existent")
+    assert response.status_code == 404
+
+def test_delete_secret_from_project(client, secrets_service):
+    # Create a secret
+    secret_data = {"name": "test-secret", "source": "AWS_SAM"}
+    secret = client.post("/secrets/", json=secret_data).json()
+    
+    # Create a project with the secret
+    project_data = {"name": "test-project", "secrets": [secret["identifier"]]}
+    project = client.post("/projects/", json=project_data).json()
+    
+    # Delete secret from project
+    response = client.delete(
+        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert secret["identifier"] not in data["secrets"]
+    
+    # Test deleting from non-existent project
+    response = client.delete(f"/projects/non-existent/secrets/{secret['identifier']}")
+    assert response.status_code == 404

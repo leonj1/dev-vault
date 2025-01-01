@@ -70,3 +70,39 @@ class ProjectsService:
             return False
         del self._projects[identifier]
         return True
+
+    async def add_secret(self, project_id: str, secret_id: str) -> Optional[Project]:
+        """
+        Add a secret to a project.
+
+        Args:
+            project_id: Project identifier
+            secret_id: Secret identifier to add
+
+        Returns:
+            Updated project if found, None otherwise
+        """
+        project = await self.get_project(project_id)
+        if not project:
+            return None
+        if secret_id not in project.secrets:
+            project.secrets.append(secret_id)
+        return project
+
+    async def delete_secret(self, project_id: str, secret_id: str) -> Optional[Project]:
+        """
+        Delete a secret from a project.
+
+        Args:
+            project_id: Project identifier
+            secret_id: Secret identifier to remove
+
+        Returns:
+            Updated project if found and secret removed, None otherwise
+        """
+        project = await self.get_project(project_id)
+        if not project:
+            return None
+        if secret_id in project.secrets:
+            project.secrets.remove(secret_id)
+        return project
