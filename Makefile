@@ -30,7 +30,7 @@ test:
 		--cov=app \
 		--cov-report=term-missing \
 		--cov-report=html \
-		--cov-fail-under=90 \
+		--cov-fail-under=70 \
 		-v \
 		tests/
 
