@@ -13,8 +13,11 @@ COPY app/static /app
 # Expose port
 EXPOSE 3000
 
-# Set environment variable for API port
-ENV API_PORT=5000
+# Set environment variables for API connection
+ENV API_HOST=localhost \
+    API_PORT=5000
 
-# Replace API_PORT in index.html at runtime
-CMD sh -c "sed -i \"s/const API_PORT = window.API_PORT || 5000;/const API_PORT = $API_PORT;/\" /app/index.html && serve -s /app -l tcp://0.0.0.0:3000"
+# Replace API_HOST and API_PORT in index.html at runtime
+CMD sh -c "sed -i \"s/const API_HOST = window.API_HOST || 'localhost';/const API_HOST = '$API_HOST';/\" /app/index.html && \
+           sed -i \"s/const API_PORT = window.API_PORT || 5000;/const API_PORT = $API_PORT;/\" /app/index.html && \
+           serve -s /app -l tcp://0.0.0.0:3000"

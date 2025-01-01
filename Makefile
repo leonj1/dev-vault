@@ -45,6 +45,7 @@ run: stop build build-frontend
 	@docker run -d --name $(API_CONTAINER) -p $(API_PORT):8000 $(API_CONTAINER)
 	@sleep 2  # Wait for API to start
 	@docker run -d --name $(FRONTEND_CONTAINER) \
+		-e API_HOST=10.1.1.144 \
 		-e API_PORT=$(API_PORT) \
 		-p $(FRONTEND_PORT):3000 \
 		$(FRONTEND_CONTAINER)
