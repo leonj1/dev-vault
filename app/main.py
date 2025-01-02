@@ -174,3 +174,29 @@ async def delete_secret_from_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+@app.get("/projects/{identifier}/secrets", response_model=List[Secret])
+async def get_project_secrets(
+    identifier: str,
+    projects_service: ProjectsService = Depends(get_projects_service),
+    secrets_service: SecretsService = Depends(get_secrets_service)
+) -> List[Secret]:
+    """
+    Get all secrets for a project.
+
+    Args:
+        identifier: Project identifier
+
+    Returns:
+        List of secrets associated with the project
+    """
+    # Get project
+    project = await projects_service.get_project(identifier)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Get all secrets and filter to only those in the project
+    all_secrets = await secrets_service.list_secrets()
+    project_secrets = [s for s in all_secrets if s.identifier in project.secrets]
+    
+    return project_secrets
