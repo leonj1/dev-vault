@@ -497,6 +497,25 @@
             }, 3000);
         }
 
+        // Convert input to uppercase as user types
+        document.getElementById('secretName').addEventListener('input', (e) => {
+            const input = e.target;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            input.value = input.value.toUpperCase();
+            // Restore cursor position
+            input.setSelectionRange(start, end);
+        });
+
+        document.getElementById('editSecretName').addEventListener('input', (e) => {
+            const input = e.target;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            input.value = input.value.toUpperCase();
+            // Restore cursor position
+            input.setSelectionRange(start, end);
+        });
+
         // Initial load
         loadSecrets();
     </script>
