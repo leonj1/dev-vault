@@ -6,7 +6,6 @@ import logging
 import os
 from typing import List
 from .models import Secret, Project
-from .services.secrets_service import SecretsService
 from .services.projects_service import ProjectsService
 
 app = FastAPI(
@@ -39,18 +38,8 @@ async def root():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
-# Create single instances of services
-secrets_service = SecretsService()
+# Create single instance of ProjectsService
 projects_service = ProjectsService()
-
-def get_secrets_service() -> SecretsService:
-    """
-    Dependency injection for SecretsService.
-
-    Returns:
-        Instance of SecretsService
-    """
-    return secrets_service
 
 def get_projects_service() -> ProjectsService:
     """
@@ -109,62 +98,44 @@ async def delete_project(
         raise HTTPException(status_code=404, detail="Project not found")
     return True
 
-@app.post("/secrets/", response_model=Secret)
+@app.post("/projects/{identifier}/secrets", response_model=Project)
 async def create_secret(
-    secret: Secret,
-    service: SecretsService = Depends(get_secrets_service)
-) -> Secret:
-    return await service.create_secret(secret)
-
-@app.get("/secrets/", response_model=List[Secret])
-async def list_secrets(
-    service: SecretsService = Depends(get_secrets_service)
-) -> List[Secret]:
-    return await service.list_secrets()
-
-@app.put("/secrets/{identifier}", response_model=Secret)
-async def update_secret(
     identifier: str,
     secret: Secret,
-    service: SecretsService = Depends(get_secrets_service)
-) -> Secret:
-    """Update a secret"""
-    updated_secret = await service.update_secret(identifier, secret)
-    if not updated_secret:
-        raise HTTPException(status_code=404, detail="Secret not found")
-    return updated_secret
-
-@app.delete("/secrets/{identifier}", response_model=bool)
-async def delete_secret(
-    identifier: str,
-    service: SecretsService = Depends(get_secrets_service)
-) -> bool:
-    """Delete a secret"""
-    if not await service.delete_secret(identifier):
-        raise HTTPException(status_code=404, detail="Secret not found")
-    return True
-
-@app.post("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
-async def add_secret_to_project(
-    identifier: str,
-    secret_id: str,
-    service: ProjectsService = Depends(get_projects_service),
-    secrets_service: SecretsService = Depends(get_secrets_service)
+    service: ProjectsService = Depends(get_projects_service)
 ) -> Project:
-    """Add a secret to a project"""
-    # Verify secret exists
-    secrets = await secrets_service.list_secrets()
-    if not any(s.identifier == secret_id for s in secrets):
-        raise HTTPException(status_code=404, detail="Secret not found")
-    
-    # Add secret to project
-    project = await service.add_secret(identifier, secret_id)
+    """Create a new secret in a project"""
+    project = await service.create_secret(identifier, secret)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
+@app.get("/projects/{identifier}/secrets", response_model=List[Secret])
+async def list_project_secrets(
+    identifier: str,
+    service: ProjectsService = Depends(get_projects_service)
+) -> List[Secret]:
+    """List all secrets in a project"""
+    secrets = await service.list_project_secrets(identifier)
+    if secrets is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return secrets
+
+@app.put("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
+async def update_secret(
+    identifier: str,
+    secret_id: str,
+    secret: Secret,
+    service: ProjectsService = Depends(get_projects_service)
+) -> Project:
+    """Update a secret in a project"""
+    project = await service.update_secret(identifier, secret_id, secret)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project or secret not found")
+    return project
+
 @app.delete("/projects/{identifier}/secrets/{secret_id}", response_model=Project)
-async def delete_secret_from_project(
+async def delete_secret(
     identifier: str,
     secret_id: str,
     service: ProjectsService = Depends(get_projects_service)
@@ -174,29 +145,3 @@ async def delete_secret_from_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
-
-@app.get("/projects/{identifier}/secrets", response_model=List[Secret])
-async def get_project_secrets(
-    identifier: str,
-    projects_service: ProjectsService = Depends(get_projects_service),
-    secrets_service: SecretsService = Depends(get_secrets_service)
-) -> List[Secret]:
-    """
-    Get all secrets for a project.
-
-    Args:
-        identifier: Project identifier
-
-    Returns:
-        List of secrets associated with the project
-    """
-    # Get project
-    project = await projects_service.get_project(identifier)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Get all secrets and filter to only those in the project
-    all_secrets = await secrets_service.list_secrets()
-    project_secrets = [s for s in all_secrets if s.identifier in project.secrets]
-    
-    return project_secrets

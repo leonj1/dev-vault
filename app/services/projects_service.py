@@ -1,5 +1,5 @@
 from typing import List, Optional
-from ..models import Project
+from ..models import Project, Secret
 
 class ProjectsService:
     def __init__(self):
@@ -74,13 +74,13 @@ class ProjectsService:
         del self._projects[identifier]
         return True
 
-    async def add_secret(self, project_id: str, secret_id: str) -> Optional[Project]:
+    async def create_secret(self, project_id: str, secret: Secret) -> Optional[Project]:
         """
-        Add a secret to a project.
+        Create a new secret in a project.
 
         Args:
             project_id: Project identifier
-            secret_id: Secret identifier to add
+            secret: Secret to create
 
         Returns:
             Updated project if found, None otherwise
@@ -88,10 +88,48 @@ class ProjectsService:
         project = await self.get_project(project_id)
         if not project:
             return None
-        if secret_id not in project.secrets:
-            project.secrets.append(secret_id)
-            self._projects[project_id] = project  # Save the updated project
+        project.secrets.append(secret)
+        self._projects[project_id] = project
         return project
+
+    async def list_project_secrets(self, project_id: str) -> Optional[List[Secret]]:
+        """
+        List all secrets in a project.
+
+        Args:
+            project_id: Project identifier
+
+        Returns:
+            List of secrets if project found, None otherwise
+        """
+        project = await self.get_project(project_id)
+        if not project:
+            return None
+        return project.secrets
+
+    async def update_secret(self, project_id: str, secret_id: str, secret: Secret) -> Optional[Project]:
+        """
+        Update a secret in a project.
+
+        Args:
+            project_id: Project identifier
+            secret_id: Secret identifier to update
+            secret: Updated secret data
+
+        Returns:
+            Updated project if found and secret updated, None otherwise
+        """
+        project = await self.get_project(project_id)
+        if not project:
+            return None
+
+        for i, existing_secret in enumerate(project.secrets):
+            if existing_secret.identifier == secret_id:
+                secret.identifier = secret_id  # Ensure identifier remains the same
+                project.secrets[i] = secret
+                self._projects[project_id] = project
+                return project
+        return None
 
     async def delete_secret(self, project_id: str, secret_id: str) -> Optional[Project]:
         """
@@ -107,7 +145,10 @@ class ProjectsService:
         project = await self.get_project(project_id)
         if not project:
             return None
-        if secret_id in project.secrets:
-            project.secrets.remove(secret_id)
-            self._projects[project_id] = project  # Save the updated project
+
+        original_length = len(project.secrets)
+        project.secrets = [s for s in project.secrets if s.identifier != secret_id]
+        if len(project.secrets) == original_length:
+            return None  # Secret not found
+        self._projects[project_id] = project
         return project

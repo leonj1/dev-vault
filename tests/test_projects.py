@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app, get_projects_service
+from app.models import Source
 
 @pytest.fixture
 def client(projects_service):
@@ -15,7 +16,7 @@ def test_create_project(client):
         },
         {
             "name": "another-project",
-            "secrets": ["secret1", "secret2"]
+            "secrets": []  # Projects start with no secrets
         }
     ]
 
@@ -24,14 +25,15 @@ def test_create_project(client):
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == case["name"]
-        assert data["secrets"] == case["secrets"]
+        assert isinstance(data["secrets"], list)
+        assert len(data["secrets"]) == 0
         assert "identifier" in data
 
 def test_list_projects(client):
     # Create test projects
     projects = [
         {"name": "project1", "secrets": []},
-        {"name": "project2", "secrets": ["secret1"]}
+        {"name": "project2", "secrets": []}
     ]
     
     created_projects = []
@@ -71,10 +73,10 @@ def test_update_project(client):
     assert create_response.status_code == 200
     created_project = create_response.json()
     
-    # Update the project
+    # Update the project name (secrets should be managed through secret endpoints)
     updated_data = {
         "name": "updated-project",
-        "secrets": ["secret1"]
+        "secrets": []
     }
     response = client.put(
         f"/projects/{created_project['identifier']}", 
@@ -83,7 +85,6 @@ def test_update_project(client):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == updated_data["name"]
-    assert data["secrets"] == updated_data["secrets"]
     assert data["identifier"] == created_project["identifier"]
     
     # Test updating non-existent project
@@ -110,90 +111,56 @@ def test_delete_project(client):
     response = client.delete("/projects/non-existent")
     assert response.status_code == 404
 
-def test_add_secret_to_project(client, secrets_service):
-    # Create a secret first
-    secret_data = {"name": "test-secret", "value": "test-value", "source": "AWS_SAM"}
-    secret = client.post("/secrets/", json=secret_data).json()
-    
-    # Create a project
-    project_data = {"name": "test-project", "secrets": []}
-    project = client.post("/projects/", json=project_data).json()
-    
-    # Add secret to project
-    response = client.post(
-        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert secret["identifier"] in data["secrets"]
-    
-    # Test adding to non-existent project
-    response = client.post(f"/projects/non-existent/secrets/{secret['identifier']}")
-    assert response.status_code == 404
-    
-    # Test adding non-existent secret
-    response = client.post(f"/projects/{project['identifier']}/secrets/non-existent")
-    assert response.status_code == 404
-
-def test_delete_secret_from_project(client, secrets_service):
-    # Create a secret
-    secret_data = {"name": "test-secret", "value": "test-value", "source": "AWS_SAM"}
-    secret = client.post("/secrets/", json=secret_data).json()
-    
-    # Create a project with the secret
-    project_data = {"name": "test-project", "secrets": [secret["identifier"]]}
-    project = client.post("/projects/", json=project_data).json()
-    
-    # Delete secret from project
-    response = client.delete(
-        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert secret["identifier"] not in data["secrets"]
-    
-    # Test deleting from non-existent project
-    response = client.delete(f"/projects/non-existent/secrets/{secret['identifier']}")
-    assert response.status_code == 404
-
-def test_complete_secret_project_flow(client, secrets_service):
-    """Test the complete flow of secret and project management:
-    1. Create a secret
-    2. Create a project (should have no secrets)
-    3. Assign the secret to the project
-    4. Remove the secret from the project
+def test_complete_project_secret_flow(client):
+    """Test the complete flow of project and secret management:
+    1. Create a project
+    2. Add a secret to the project
+    3. Update the secret
+    4. Remove the secret
     5. Verify project has no secrets
     """
-    # 1. Create a secret
-    secret_data = {
-        "name": "flow-test-secret",
-        "value": "test-value",
-        "source": "AWS_SAM"
-    }
-    secret_response = client.post("/secrets/", json=secret_data)
-    assert secret_response.status_code == 200
-    secret = secret_response.json()
-    
-    # 2. Create a project (should have no secrets)
+    # 1. Create a project
     project_data = {
         "name": "flow-test-project",
-        "secrets": []  # Explicitly empty
+        "secrets": []
     }
     project_response = client.post("/projects/", json=project_data)
     assert project_response.status_code == 200
     project = project_response.json()
-    assert len(project["secrets"]) == 0  # Verify no secrets auto-assigned
+    assert len(project["secrets"]) == 0
     
-    # 3. Assign the secret to the project
-    assign_response = client.post(
-        f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
+    # 2. Add a secret to the project
+    secret_data = {
+        "name": "flow-test-secret",
+        "value": "test-value",
+        "source": Source.AWS_SAM.value
+    }
+    secret_response = client.post(
+        f"/projects/{project['identifier']}/secrets",
+        json=secret_data
     )
-    assert assign_response.status_code == 200
-    updated_project = assign_response.json()
-    assert secret["identifier"] in updated_project["secrets"]
+    assert secret_response.status_code == 200
+    updated_project = secret_response.json()
     assert len(updated_project["secrets"]) == 1
+    secret = updated_project["secrets"][0]
+    assert secret["name"] == secret_data["name"]
     
-    # 4. Remove the secret from the project
+    # 3. Update the secret
+    updated_secret_data = {
+        "name": "updated-secret",
+        "value": "new-value",
+        "source": Source.OTHER.value
+    }
+    update_response = client.put(
+        f"/projects/{project['identifier']}/secrets/{secret['identifier']}",
+        json=updated_secret_data
+    )
+    assert update_response.status_code == 200
+    updated_project = update_response.json()
+    updated_secret = updated_project["secrets"][0]
+    assert updated_secret["name"] == updated_secret_data["name"]
+    
+    # 4. Remove the secret
     remove_response = client.delete(
         f"/projects/{project['identifier']}/secrets/{secret['identifier']}"
     )
@@ -202,7 +169,6 @@ def test_complete_secret_project_flow(client, secrets_service):
     
     # 5. Verify project has no secrets
     assert len(final_project["secrets"]) == 0
-    assert secret["identifier"] not in final_project["secrets"]
     
     # Double-check by getting the project directly
     get_response = client.get(f"/projects/{project['identifier']}")
